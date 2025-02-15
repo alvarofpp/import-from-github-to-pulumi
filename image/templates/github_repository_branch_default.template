@@ -1,0 +1,6 @@
+        const branchDefault = new github.BranchDefault(`${PULUMI_RESOURCE_NAME}BranchDefault`, {
+            branch: branch.branch,
+            repository: repository.name,
+        }, {
+            protect: true,
+        });

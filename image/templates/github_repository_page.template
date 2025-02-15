@@ -1,0 +1,7 @@
+            pages: {
+                buildType: "${PAGE_BUILD_TYPE}",
+                source: {
+                    branch: "${PAGE_SOURCE_BRANCH}",
+                    path: "${PAGE_SOURCE_PATH}",
+                },
+            },

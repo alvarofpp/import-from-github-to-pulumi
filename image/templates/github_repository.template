@@ -1,0 +1,47 @@
+import * as pulumi from "@pulumi/pulumi";
+import * as github from "@pulumi/github";
+
+export class ${PULUMI_RESOURCE_NAME}Repository {
+    constructor() {
+        const repository = new github.Repository(`${PULUMI_RESOURCE_NAME}Repository`, {
+            allowAutoMerge: ${REPOSITORY_ALLOW_AUTO_MERGE},
+            allowMergeCommit: ${REPOSITORY_ALLOW_MERGE_COMMIT},
+            allowRebaseMerge: ${REPOSITORY_ALLOW_REBASE_MERGE},
+            allowSquashMerge: ${REPOSITORY_ALLOW_SQUASH_MERGE},
+            allowUpdateBranch: ${REPOSITORY_ALLOW_UPDATE_MERGE},
+            archived: ${REPOSITORY_ARCHIVED},
+            deleteBranchOnMerge: ${REPOSITORY_DELETE_BRANCH_ON_MERGE},
+            description: ${REPOSITORY_DESCRIPTION},
+            hasDiscussions: ${REPOSITORY_HAS_DISCUSSIONS},
+            hasDownloads: ${REPOSITORY_HAS_DOWNLOADS},
+            hasIssues: ${REPOSITORY_HAS_ISSUES},
+            hasProjects: ${REPOSITORY_HAS_PROJECTS},
+            hasWiki: ${REPOSITORY_HAS_WIKI},
+            homepageUrl: "${REPOSITORY_HOMEPAGE_URL}",
+            isTemplate: ${REPOSITORY_IS_TEMPLATE},
+            mergeCommitMessage: "${REPOSITORY_MERGE_COMMIT_MESSAGE}",
+            mergeCommitTitle: "${REPOSITORY_MERGE_COMMIT_TITLE}",
+            name: "${REPOSITORY_NAME}",
+            squashMergeCommitMessage: "${REPOSITORY_SQUASH_MERGE_COMMIT_MESSAGE}",
+            squashMergeCommitTitle: "${REPOSITORY_SQUASH_MERGE_COMMIT_TITLE}",
+            topics: ${REPOSITORY_TOPICS},
+            visibility: "${REPOSITORY_VISIBILITY}",
+            webCommitSignoffRequired: ${REPOSITORY_WEB_COMMIT_SIGNOFF_REQUIRED},
+${REPOSITORY_PAGES}
+${REPOSITORY_TEMPLATE}
+        }, {
+            import: "${REPOSITORY_NAME}",
+            protect: true,
+        });
+
+        const branch = new github.Branch(`${PULUMI_RESOURCE_NAME}Branch`, {
+            branch: "${REPOSITORY_DEFAULT_BRANCH}",
+            repository: repository.name,
+        }, {
+            import: `${REPOSITORY_NAME}:${REPOSITORY_DEFAULT_BRANCH}`,
+            protect: true,
+        });
+
+${REPOSITORY_BRANCH_DEFAULT}
+    }
+}

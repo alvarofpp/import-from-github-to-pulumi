@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ "${DEBUG}" == "true" ]]; then
+  set -x
+fi
+
+rm /opt/resources/*/*.ts
+rm /opt/resources/*.txt
+rm -rf /tmp/logs/*

@@ -1,0 +1,4 @@
+            template: {
+                owner: "${TEMPLATE_OWNER}",
+                repository: "${TEMPLATE_REPOSITORY}",
+            },

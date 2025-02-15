@@ -1,0 +1,193 @@
+#!/bin/bash
+# ============================================================================
+# Using the `repositories.json` file, it generates the Pulumi files.
+# Makes other calls to the GitHub API if necessary.
+#
+# USAGE:
+#   convert-repositories-to-resources
+#   ID="..." convert-repositories-to-resources
+#
+# REQUIREMENTS:
+#   - curl
+#   - jq
+# ============================================================================
+
+source /usr/bin/helpers.sh
+
+# =====================================
+# Check that the repository name starts with a digit.
+#
+# ARGUMENTS:
+#   $1: Repository name.
+#
+# RETURN:
+#   - `true` if the repository name starts with a digit.
+#   - `false` if not.
+# =====================================
+check_starts_with_digit() {
+  if [[ $1 == [0-9]* ]]; then
+    echo "true"
+    return
+  fi
+  echo "false"
+}
+
+# =====================================
+# Add the prefix `Repo` if the repository name starts with a digit.
+#
+# ARGUMENTS:
+#   $1: Repository name.
+#
+# RETURN:
+#   Returns the input with or without prefix.
+#   Examples: if the `input` is "ValidateDocbr" it will return "ValidateDocbr".
+#             if the `input` is "4linuxHadoop" it will return "Repo4linuxHadoop".
+# =====================================
+add_prefix_if_necessary() {
+  local input="${1:-$(cat)}"
+
+  if [ "$(check_starts_with_digit "$input")" == "true" ]; then
+    echo "Repo${input}"
+    return
+  fi
+
+  echo "${input}"
+}
+
+# =====================================
+# Gets data about repository pages.
+#
+# ARGUMENTS:
+#   $1: Repository data.
+#
+# RETURN:
+#   Repository pages template part.
+# =====================================
+get_pages() {
+  REPOSITORY_DATA=$1
+  REPOSITORY_HAS_PAGES=$(echo "${REPOSITORY_DATA}" | jq -r '.has_pages // false')
+  REPOSITORY_PAGES=""
+
+  if [ "${REPOSITORY_HAS_PAGES}" == "true" ]; then
+    REPOSITORY_FULL_NAME=$(echo "${REPOSITORY_DATA}" | jq -r '.full_name')
+    REPOSITORY_PAGES=$(
+      PAGES=$(github_api_call "/repos/${REPOSITORY_FULL_NAME}/pages")
+      PAGE_BUILD_TYPE=$(echo "${PAGES}" | jq -r '.build_type // ""') \
+      PAGE_SOURCE_BRANCH=$(echo "${PAGES}" | jq -r '.source.branch // "gh-pages"') \
+      PAGE_SOURCE_PATH=$(echo "${PAGES}" | jq -r '.source.path // "/"') \
+      envsubst < /opt/templates/github_repository_page.template
+    )
+  fi
+
+  echo "${REPOSITORY_PAGES}"
+}
+
+# =====================================
+# Gets data about repository template.
+#
+# ARGUMENTS:
+#   $1: Repository data.
+#
+# RETURN:
+#   Repository template template part.
+# =====================================
+get_template() {
+  REPOSITORY_DATA=$1
+  REPOSITORY_TEMPLATE_REPOSITORY=$(echo "${REPOSITORY_DATA}" | jq -r '.template_repository // ""')
+  REPOSITORY_TEMPLATE=""
+
+  if [ -n "${REPOSITORY_TEMPLATE_REPOSITORY}" ]; then
+    REPOSITORY_TEMPLATE=$(
+      TEMPLATE_OWNER=$(echo "${REPOSITORY_TEMPLATE_REPOSITORY}" | jq -r '.owner.login') \
+      TEMPLATE_REPOSITORY=$(echo "${REPOSITORY_TEMPLATE_REPOSITORY}" | jq -r '.name') \
+      envsubst < /opt/templates/github_repository_template.template
+    )
+  fi
+
+  echo "${REPOSITORY_TEMPLATE}"
+}
+
+# =====================================
+# Gets data about repository branch default.
+#
+# ARGUMENTS:
+#   $1: Repository data.
+#
+# RETURN:
+#   Repository branch default template part.
+# =====================================
+get_branch_default() {
+  REPOSITORY_DATA=$1
+  REPOSITORY_ARCHIVED=$(echo "${REPOSITORY_DATA}" | jq -r '.archived // false')
+  REPOSITORY_BRANCH_DEFAULT=""
+
+  if [ "${REPOSITORY_ARCHIVED}" == "false" ]; then
+    REPOSITORY_BRANCH_DEFAULT=$(
+      PULUMI_RESOURCE_NAME=${RESOURCE_NAME} \
+      envsubst < /opt/templates/github_repository_branch_default.template
+    )
+  fi
+
+  echo "${REPOSITORY_BRANCH_DEFAULT}"
+}
+
+ID=${ID:-''}
+if [ -z "${ID}" ]; then
+  ID=$(generate_id)
+fi
+ID_DIR=$(get_id_dir "$ID")
+REPOSITORIES_FILE="${ID_DIR}/repositories.json"
+IMPORT_FILE=/opt/resources/imports_repositories.txt
+
+if [ -f "${IMPORT_FILE}" ]; then
+  rm -f "${IMPORT_FILE}"
+fi
+
+printf "\n[%s] Starting to create repositories files...\n" "${ID}"
+
+jq -c '.[]' "${REPOSITORIES_FILE}" | while read -r REPOSITORY_DATA; do
+  REPOSITORY_NAME=$(echo "${REPOSITORY_DATA}" | jq -r '.name')
+  RESOURCE_NAME=$(add_prefix_if_necessary "$(to_pascal_case "${REPOSITORY_NAME}")")
+  REPOSITORY_DEFAULT_BRANCH=$(echo "${REPOSITORY_DATA}" | jq -r '.default_branch')
+
+  REPOSITORY_PAGES=$(get_pages "${REPOSITORY_DATA}")
+  REPOSITORY_TEMPLATE=$(get_template "${REPOSITORY_DATA}")
+  REPOSITORY_BRANCH_DEFAULT=$(get_branch_default "${REPOSITORY_DATA}")
+
+  echo "Converting ${REPOSITORY_NAME} repository to Pulumi resource (repositories/${RESOURCE_NAME}.ts)..."
+
+  REPOSITORY_NAME=${REPOSITORY_NAME} \
+  PULUMI_RESOURCE_NAME=${RESOURCE_NAME} \
+  REPOSITORY_ALLOW_MERGE_COMMIT=$(echo "${REPOSITORY_DATA}" | jq -r '.allow_merge_commit // true') \
+  REPOSITORY_ALLOW_SQUASH_MERGE=$(echo "${REPOSITORY_DATA}" | jq -r '.allow_squash_merge // true') \
+  REPOSITORY_ALLOW_REBASE_MERGE=$(echo "${REPOSITORY_DATA}" | jq -r '.allow_rebase_merge // true') \
+  REPOSITORY_ALLOW_AUTO_MERGE=$(echo "${REPOSITORY_DATA}" | jq -r '.allow_auto_merge // false') \
+  REPOSITORY_ALLOW_UPDATE_MERGE=$(echo "${REPOSITORY_DATA}" | jq -r '.allow_update_merge // false') \
+  REPOSITORY_ARCHIVED=$(echo "${REPOSITORY_DATA}" | jq -r '.archived // false') \
+  REPOSITORY_DELETE_BRANCH_ON_MERGE=$(echo "${REPOSITORY_DATA}" | jq -r '.delete_branch_on_merge // false') \
+  REPOSITORY_DESCRIPTION=$(echo "${REPOSITORY_DATA}" | jq '.description // ""') \
+  REPOSITORY_HAS_DISCUSSIONS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_discussions // false') \
+  REPOSITORY_HAS_DOWNLOADS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_downloads // true') \
+  REPOSITORY_HAS_ISSUES=$(echo "${REPOSITORY_DATA}" | jq -r '.has_issues // true') \
+  REPOSITORY_HAS_PROJECTS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_projects // true') \
+  REPOSITORY_HAS_WIKI=$(echo "${REPOSITORY_DATA}" | jq -r '.has_wiki // true') \
+  REPOSITORY_HOMEPAGE_URL=$(echo "${REPOSITORY_DATA}" | jq -r '.homepage // empty') \
+  REPOSITORY_IS_TEMPLATE=$(echo "${REPOSITORY_DATA}" | jq -r '.is_template // false') \
+  REPOSITORY_MERGE_COMMIT_MESSAGE=$(echo "${REPOSITORY_DATA}" | jq -r '.merge_commit_message // "PR_BODY"') \
+  REPOSITORY_MERGE_COMMIT_TITLE=$(echo "${REPOSITORY_DATA}" | jq -r '.merge_commit_title // "PR_TITLE"') \
+  REPOSITORY_SQUASH_MERGE_COMMIT_MESSAGE=$(echo "${REPOSITORY_DATA}" | jq -r '.squash_merge_commit_message // "COMMIT_MESSAGES"') \
+  REPOSITORY_SQUASH_MERGE_COMMIT_TITLE=$(echo "${REPOSITORY_DATA}" | jq -r '.squash_merge_commit_title // "PR_TITLE"') \
+  REPOSITORY_TOPICS=$(echo "${REPOSITORY_DATA}" | jq -r '.topics') \
+  REPOSITORY_VISIBILITY=$(echo "${REPOSITORY_DATA}" | jq -r '.visibility // "all"') \
+  REPOSITORY_WEB_COMMIT_SIGNOFF_REQUIRED=$(echo "${REPOSITORY_DATA}" | jq -r '.web_commit_signoff_required // false') \
+  REPOSITORY_PAGES=${REPOSITORY_PAGES} \
+  REPOSITORY_TEMPLATE=${REPOSITORY_TEMPLATE} \
+  REPOSITORY_DEFAULT_BRANCH=${REPOSITORY_DEFAULT_BRANCH} \
+  REPOSITORY_BRANCH_DEFAULT=${REPOSITORY_BRANCH_DEFAULT} \
+  envsubst < /opt/templates/github_repository.template > /opt/resources/repositories/"${RESOURCE_NAME}".ts
+
+  {
+    echo "pulumi import github:index/repository:Repository ${RESOURCE_NAME}Repository ${REPOSITORY_NAME} --yes"
+    echo "pulumi import github:index/branch:Branch ${RESOURCE_NAME}Branch ${REPOSITORY_NAME}:${REPOSITORY_DEFAULT_BRANCH} --yes"
+  } >> "${IMPORT_FILE}"
+done

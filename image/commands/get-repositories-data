@@ -1,0 +1,53 @@
+#!/bin/bash
+# ============================================================================
+# It will collect the data from each repository,
+# generating a `repositories.json` file at the end.
+#
+# USAGE:
+#   get-repositories-data
+#   ID="..." get-repositories-data
+#
+# REQUIREMENTS:
+#   - curl
+#   - jq
+# ============================================================================
+
+source /usr/bin/helpers.sh
+
+ID=${ID:-''}
+if [ -z "${ID}" ]; then
+  ID=$(generate_id)
+fi
+ID_DIR=$(get_id_dir "$ID")
+CMD_DIR="${ID_DIR}/repositories"
+mkdir -p "${CMD_DIR}"
+OUTPUT_FILE="${ID_DIR}/repositories.json"
+
+GITHUB_ORG=${GITHUB_ORG:-''}
+GITHUB_USER=${GITHUB_USER:-''}
+if [ -n "${GITHUB_USER}" ]; then
+  GITHUB_ORG="${GITHUB_USER}"
+fi
+if [ -z "${GITHUB_ORG}" ]; then
+  echo "You need to specify a user via GITHUB_USER or an organization via GITHUB_ORG."
+  exit 1
+fi
+
+API_ENDPOINT="/repos/${GITHUB_ORG}"
+
+printf "\n[%s] Starting to get repositories data...\n" "${ID}"
+
+LIST_REPOSITORIES_FILE="${ID_DIR}/list-repositories.json"
+jq -c '.[]' "${LIST_REPOSITORIES_FILE}" | while read -r REPOSITORY_DATA_FROM_FILE; do
+  REPOSITORY_NAME=$(echo "${REPOSITORY_DATA_FROM_FILE}" | jq -r '.name')
+  echo "Getting ${REPOSITORY_NAME} repository data..."
+  github_api_call "${API_ENDPOINT}/${REPOSITORY_NAME}" > "${CMD_DIR}/${REPOSITORY_NAME}.json"
+done
+
+if [ -n "$(find "${CMD_DIR}"/ -name '*.json' 2>/dev/null)" ]
+then
+  jq -s '.' "${CMD_DIR}"/*.json > "${OUTPUT_FILE}"
+  echo "${OUTPUT_FILE} generated."
+else
+  echo "The organization has no repositories."
+fi
