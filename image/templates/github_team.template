@@ -1,0 +1,27 @@
+import * as github from "@pulumi/github";
+
+export class ${PULUMI_RESOURCE_NAME}Team {
+    constructor() {
+        const team = new github.Team(`${PULUMI_RESOURCE_NAME}Team`, {
+            description: ${TEAM_DESCRIPTION},
+            name: "${TEAM_NAME}",
+            parentTeamId: ${TEAM_PAREND_TEAM_ID},
+            privacy: "${TEAM_PRIVACY}",
+        }, {
+            import: "${TEAM_NAME}",
+            protect: true,
+        });
+
+        const teamMembers = new github.TeamMembers(`${PULUMI_RESOURCE_NAME}TeamMembers`, {
+            teamId: team.id,
+            members: [
+${TEAM_MEMBERS}
+            ],
+        }, {
+            import: "devops",
+            protect: true,
+        });
+
+${TEAM_REPOSITORIES}
+    }
+}

@@ -1,0 +1,4 @@
+{
+    username: "${MEMBER_USERNAME}",
+    role: "${MEMBER_ROLE}",
+},

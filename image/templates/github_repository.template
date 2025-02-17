@@ -1,4 +1,3 @@
-import * as pulumi from "@pulumi/pulumi";
 import * as github from "@pulumi/github";
 
 export class ${PULUMI_RESOURCE_NAME}Repository {

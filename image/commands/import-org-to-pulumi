@@ -1,10 +1,10 @@
 #!/bin/bash
 # ============================================================================
-# Generates the artifacts to import the repositories from the GitHub account
-# to Pulumi.
+# Generates the artifacts to import the repositories from the GitHub
+# organization to Pulumi.
 #
 # USAGE:
-#   import-repositories-to-pulumi
+#   import-org-to-pulumi
 #
 # REQUIREMENTS:
 #   - curl
@@ -15,8 +15,15 @@ source /usr/bin/helpers.sh
 
 ID=$(generate_id)
 # shellcheck disable=2034
-GITHUB_ORG=""
+GITHUB_USER=""
 
 ID=${ID} list-repositories
 ID=${ID} get-repositories-data
 ID=${ID} convert-repositories-to-resources
+
+ID=${ID} list-members
+ID=${ID} convert-members-to-resources
+
+ID=${ID} list-teams
+ID=${ID} get-teams-data
+ID=${ID} convert-teams-to-resources

@@ -1,0 +1,13 @@
+import * as github from "@pulumi/github";
+
+export class ${PULUMI_RESOURCE_NAME}Membership {
+    constructor() {
+        const membership = new github.Membership(`${PULUMI_RESOURCE_NAME}Membership`, {
+            username: "${MEMBERSHIP_USERNAME}",
+            role: "${MEMBERSHIP_ROLE}",
+        }, {
+            import: "${MEMBERSHIP_ORG}:${MEMBERSHIP_USERNAME}",
+            protect: true,
+        });
+    }
+}

@@ -31,23 +31,5 @@ fi
 
 printf "\n[%s] Starting to list repositories...\n" "${ID}"
 
-PAGE=1
-HAS_MORE=true
-while [ "$HAS_MORE" = true ]; do
-  REPOSITORIES=$(github_api_call "${API_ENDPOINT}${PAGE}")
-
-  if [ "$(echo "${REPOSITORIES}" | jq 'length')" -eq 0 ]; then
-    HAS_MORE=false
-  else
-    echo "${REPOSITORIES}" > "${CMD_DIR}/page_${PAGE}.json"
-    ((PAGE++))
-  fi
-done
-
-if [ -n "$(find "${CMD_DIR}"/ -name '*.json' 2>/dev/null)" ]
-then
-  jq -s '.[]' "${CMD_DIR}"/*.json > "${OUTPUT_FILE}"
-  echo "${OUTPUT_FILE} generated."
-else
-  echo "The user/organization has no repositories."
-fi
+get_all_resources "${API_ENDPOINT}" "${CMD_DIR}"
+merge_all_files_into_one "${CMD_DIR}" "${OUTPUT_FILE}"

@@ -1,0 +1,178 @@
+#!/bin/bash
+# ============================================================================
+# Using the `teams.json` file, it generates the Pulumi files.
+# Makes other calls to the GitHub API.
+#
+# USAGE:
+#   convert-teams-to-resources
+#   ID="..." convert-teams-to-resources
+#
+# REQUIREMENTS:
+#   - curl
+#   - envsubst
+#   - jq
+# ============================================================================
+
+source /usr/bin/helpers.sh
+
+# =====================================
+# Gets the data about the members of a team.
+#
+# ARGUMENTS:
+#   $GITHUB_ORG: GitHub organization.
+#   $1: Team name.
+#
+# RETURN:
+#   Github API response.
+# =====================================
+get_members() {
+  local TEAM_NAME=$1
+  local MEMBERS=""
+  MEMBERS=$(github_api_call "/orgs/${GITHUB_ORG}/teams/${TEAM_NAME}/members")
+  echo "${MEMBERS}"
+}
+
+# =====================================
+# Generates the membership template part of a team member.
+#
+# ARGUMENTS:
+#   $GITHUB_ORG: GitHub organization.
+#   $1: Team name.
+#   $2: Member name.
+#
+# RETURN:
+#   Team member template filled.
+# =====================================
+get_membership() {
+  local TEAM_NAME=$1
+  local MEMBER_NAME=$2
+  local MEMBERSHIP=""
+  local MEMBER_PART=""
+  MEMBERSHIP=$(github_api_call "/orgs/${GITHUB_ORG}/teams/${TEAM_NAME}/memberships/${MEMBER_NAME}")
+  MEMBER_PART=$(
+    MEMBER_USERNAME=${MEMBER_NAME} \
+    MEMBER_ROLE=$(echo "${MEMBERSHIP}" | jq -r '.role') \
+    envsubst < /opt/templates/github_team_members.template
+  )
+  echo "${MEMBER_PART}"
+}
+
+# =====================================
+# Gets the data about the repositories of a team.
+#
+# ARGUMENTS:
+#   $GITHUB_ORG: GitHub organization.
+#   $1: Team name.
+#
+# RETURN:
+#   Github API response.
+# =====================================
+get_repositories() {
+  local TEAM_NAME=$1
+  local REPOSITORIES=""
+  REPOSITORIES=$(github_api_call "/orgs/${GITHUB_ORG}/teams/${TEAM_NAME}/repos")
+  echo "${REPOSITORIES}"
+}
+
+# =====================================
+# Generates the repository template part of a repository to a team.
+#
+# ARGUMENTS:
+#   $GITHUB_ORG: GitHub organization.
+#   $1: Pulumi resource name.
+#   $2: Team name.
+#   $3: Repository data.
+#
+# RETURN:
+#   Team repository template filled.
+# =====================================
+get_repository() {
+  local RESOURCE_NAME=$1
+  local TEAM_NAME=$2
+  local TEAM_REPOSITORY=$3
+  local REPOSITORY_PART=""
+  local PERMISSION=""
+
+  if [ "$(echo "${TEAM_REPOSITORY}" | jq -r ".permissions.admin // false")" = true ]; then
+    PERMISSION="admin"
+  elif [ "$(echo "${TEAM_REPOSITORY}" | jq -r ".permissions.maintain // false")" = true ]; then
+    PERMISSION="maintain"
+  elif [ "$(echo "${TEAM_REPOSITORY}" | jq -r ".permissions.push // false")" = true ]; then
+    PERMISSION="push"
+  elif [ "$(echo "${TEAM_REPOSITORY}" | jq -r ".permissions.triage // false")" = true ]; then
+    PERMISSION="triage"
+  elif [ "$(echo "${TEAM_REPOSITORY}" | jq -r ".permissions.pull // false")" = true ]; then
+    PERMISSION="pull"
+  fi
+
+  REPOSITORY_PART=$(
+    TEAM_NAME_LOWER_CASE=$(to_lower_case "${TEAM_NAME}") \
+    PULUMI_RESOURCE_NAME=${RESOURCE_NAME} \
+    REPOSITORY_NAME=$(to_pascal_case "$(to_lower_case "${REPOSITORY_NAME}")") \
+    REPOSITORY_PERMISSION=${PERMISSION} \
+    envsubst < /opt/templates/github_team_repository.template
+  )
+  echo "${REPOSITORY_PART}"
+}
+
+ID=${ID:-''}
+if [ -z "${ID}" ]; then
+  ID=$(generate_id)
+fi
+ID_DIR=$(get_id_dir "$ID")
+TEAMS_FILE="${ID_DIR}/teams.json"
+IMPORT_FILE=/opt/resources/imports_teams.txt
+
+if [ -f "${IMPORT_FILE}" ]; then
+  rm -f "${IMPORT_FILE}"
+fi
+
+printf "\n[%s] Starting to create teams files...\n" "${ID}"
+
+jq -c '.[]' "${TEAMS_FILE}" | while read -r TEAM_DATA; do
+  TEAM_NAME=$(echo "${TEAM_DATA}" | jq -r '.name')
+  TEAM_NAME_LOWER_CASE=$(to_lower_case "${TEAM_NAME}")
+  RESOURCE_NAME=$(to_pascal_case "${TEAM_NAME_LOWER_CASE}")
+  TEAM_FILE=/opt/resources/teams/"${RESOURCE_NAME}".ts
+
+  TEAM_MEMBERS_PART=""
+  TEAM_MEMBERS=$(get_members "${TEAM_NAME}")
+  while read -r TEAM_MEMBER; do
+    MEMBER_NAME=$(echo "${TEAM_MEMBER}" | jq -r '.login')
+    TEAM_MEMBER_PART=$(get_membership "${TEAM_NAME}" "${MEMBER_NAME}")
+    TEAM_MEMBERS_PART="${TEAM_MEMBERS_PART}${TEAM_MEMBER_PART}"
+  done < <(jq -c '.[]' <<< "${TEAM_MEMBERS}")
+
+  TEAM_REPOSITORIES_PART=""
+  TEAM_REPOSITORIES=$(get_repositories "${TEAM_NAME}")
+  TEAM_REPOSITORIES_IMPORT_FILE=/tmp/imports_teams_tmp.txt
+  if [ -f "${TEAM_REPOSITORIES_IMPORT_FILE}" ]; then
+    rm -f "${TEAM_REPOSITORIES_IMPORT_FILE}"
+  fi
+  touch "${TEAM_REPOSITORIES_IMPORT_FILE}"
+
+  while read -r TEAM_REPOSITORY; do
+    REPOSITORY_NAME=$(echo "${TEAM_REPOSITORY}" | jq -r '.name')
+    TEAM_REPOSITORY_PART=$(get_repository "${RESOURCE_NAME}" "${TEAM_NAME}" "${TEAM_REPOSITORY}")
+    TEAM_REPOSITORIES_PART="${TEAM_REPOSITORIES_PART}${TEAM_REPOSITORY_PART}"
+    echo "pulumi import github:index/teamRepository:TeamRepository ${RESOURCE_NAME}TeamRepository ${TEAM_NAME}:${REPOSITORY_NAME} --yes" >> "$TEAM_REPOSITORIES_IMPORT_FILE"
+  done < <(jq -c '.[]' <<< "${TEAM_REPOSITORIES}")
+  TEAM_REPOSITORIES_IMPORT=$(cat "${TEAM_REPOSITORIES_IMPORT_FILE}")
+
+  echo "Converting ${TEAM_NAME} team to Pulumi resource (teams/${RESOURCE_NAME}.ts)..."
+
+  PULUMI_RESOURCE_NAME=${RESOURCE_NAME} \
+  TEAM_DESCRIPTION=$(echo "${TEAM_DATA}" | jq '.description // ""') \
+  TEAM_NAME=${TEAM_NAME} \
+  TEAM_PAREND_TEAM_ID=$(echo "${TEAM_DATA}" | jq -r '.parent.id // null') \
+  TEAM_PRIVACY=$(echo "${TEAM_DATA}" | jq -r '.privacy // "secret"') \
+  TEAM_MEMBERS=${TEAM_MEMBERS_PART} \
+  TEAM_REPOSITORIES=${TEAM_REPOSITORIES_PART} \
+  envsubst < /opt/templates/github_team.template > "${TEAM_FILE}"
+
+  {
+    echo "pulumi import github:index/team:Team ${RESOURCE_NAME}Team ${TEAM_NAME} --yes"
+    echo "pulumi import github:index/teamMembers:TeamMembers ${RESOURCE_NAME}TeamMembers ${TEAM_NAME} --yes"
+    echo "$TEAM_REPOSITORIES_IMPORT"
+  } >> "${IMPORT_FILE}"
+done

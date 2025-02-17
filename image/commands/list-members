@@ -1,0 +1,30 @@
+#!/bin/bash
+# ============================================================================
+# It will list all of the organization's members.
+# Generates the `members.json` file with all the members listed.
+#
+# USAGE:
+#   list-members
+#   ID="..." list-members
+#
+# REQUIREMENTS:
+#   - curl
+#   - jq
+# ============================================================================
+
+source /usr/bin/helpers.sh
+
+ID=${ID:-''}
+if [ -z "${ID}" ]; then
+  ID=$(generate_id)
+fi
+ID_DIR=$(get_id_dir "$ID")
+CMD_DIR="${ID_DIR}/members"
+mkdir -p "${CMD_DIR}"
+OUTPUT_FILE="${ID_DIR}/members.json"
+API_ENDPOINT="/orgs/${GITHUB_ORG}/members?per_page=100&page="
+
+printf "\n[%s] Starting to list members...\n" "${ID}"
+
+get_all_resources "${API_ENDPOINT}" "${CMD_DIR}"
+merge_all_files_into_one "${CMD_DIR}" "${OUTPUT_FILE}"

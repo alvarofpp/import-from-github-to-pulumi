@@ -1,0 +1,49 @@
+#!/bin/bash
+# ============================================================================
+# Using the `members.json` file, it generates the Pulumi files.
+# Makes other calls to the GitHub API.
+#
+# USAGE:
+#   convert-members-to-resources
+#   ID="..." convert-members-to-resources
+#
+# REQUIREMENTS:
+#   - curl
+#   - envsubst
+#   - jq
+# ============================================================================
+
+source /usr/bin/helpers.sh
+
+ID=${ID:-''}
+if [ -z "${ID}" ]; then
+  ID=$(generate_id)
+fi
+ID_DIR=$(get_id_dir "$ID")
+MEMBERS_FILE="${ID_DIR}/members.json"
+IMPORT_FILE=/opt/resources/imports_memberships.txt
+API_ENDPOINT="/orgs/${GITHUB_ORG}/memberships/"
+
+if [ -f "${IMPORT_FILE}" ]; then
+  rm -f "${IMPORT_FILE}"
+fi
+
+printf "\n[%s] Starting to create members files...\n" "${ID}"
+
+jq -c '.[]' "${MEMBERS_FILE}" | while read -r member; do
+  MEMBER_LOGIN=$(echo "${member}" | jq -r '.login')
+  MEMBER_LOGIN_LOWER_CASE=$(echo "${MEMBER_LOGIN}" | tr '[:upper:]' '[:lower:]' | sed 's/[-\.]/_/g')
+  RESOURCE_NAME=$(to_pascal_case "${MEMBER_LOGIN_LOWER_CASE}")
+
+  echo "Converting ${MEMBER_LOGIN} member to Pulumi resource (members/${RESOURCE_NAME}.ts)..."
+
+  MEMBERSHIP=$(github_api_call "${API_ENDPOINT}${MEMBER_LOGIN}")
+
+  PULUMI_RESOURCE_NAME=${RESOURCE_NAME} \
+  MEMBERSHIP_ORG=${GITHUB_ORG} \
+  MEMBERSHIP_USERNAME=${MEMBER_LOGIN} \
+  MEMBERSHIP_ROLE=$(echo "${MEMBERSHIP}" | jq -r '.role // "member"') \
+  envsubst < /opt/templates/github_membership.template > /opt/resources/members/"${RESOURCE_NAME}".ts
+
+  echo "pulumi import github:index/membership:Membership ${RESOURCE_NAME}Membership ${GITHUB_ORG}:${MEMBER_LOGIN} --yes" >> "${IMPORT_FILE}"
+done

@@ -37,17 +37,11 @@ API_ENDPOINT="/repos/${GITHUB_ORG}"
 
 printf "\n[%s] Starting to get repositories data...\n" "${ID}"
 
-LIST_REPOSITORIES_FILE="${ID_DIR}/list-repositories.json"
-jq -c '.[]' "${LIST_REPOSITORIES_FILE}" | while read -r REPOSITORY_DATA_FROM_FILE; do
+LIST_FILE="${ID_DIR}/list-repositories.json"
+jq -c '.[]' "${LIST_FILE}" | while read -r REPOSITORY_DATA_FROM_FILE; do
   REPOSITORY_NAME=$(echo "${REPOSITORY_DATA_FROM_FILE}" | jq -r '.name')
   echo "Getting ${REPOSITORY_NAME} repository data..."
   github_api_call "${API_ENDPOINT}/${REPOSITORY_NAME}" > "${CMD_DIR}/${REPOSITORY_NAME}.json"
 done
 
-if [ -n "$(find "${CMD_DIR}"/ -name '*.json' 2>/dev/null)" ]
-then
-  jq -s '.' "${CMD_DIR}"/*.json > "${OUTPUT_FILE}"
-  echo "${OUTPUT_FILE} generated."
-else
-  echo "The organization has no repositories."
-fi
+merge_all_files_into_one "${CMD_DIR}" "${OUTPUT_FILE}" "."

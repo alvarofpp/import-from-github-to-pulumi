@@ -1,0 +1,36 @@
+#!/bin/bash
+# ============================================================================
+# It will collect the data from each teams,
+# generating a `teams.json` file at the end.
+#
+# USAGE:
+#   get-teams-data
+#   ID="..." get-teams-data
+#
+# REQUIREMENTS:
+#   - curl
+#   - jq
+# ============================================================================
+
+source /usr/bin/helpers.sh
+
+ID=${ID:-''}
+if [ -z "${ID}" ]; then
+  ID=$(generate_id)
+fi
+ID_DIR=$(get_id_dir "$ID")
+CMD_DIR="${ID_DIR}/teams"
+mkdir -p "${CMD_DIR}"
+OUTPUT_FILE="${ID_DIR}/teams.json"
+API_ENDPOINT="/orgs/${GITHUB_ORG}/teams"
+
+printf "\n[%s] Starting to get teams...\n" "${ID}"
+
+LIST_FILE="${ID_DIR}/list-teams.json"
+jq -c '.[]' "${LIST_FILE}" | while read -r TEAM_DATA_FROM_FILE; do
+  TEAM_NAME=$(echo "${TEAM_DATA_FROM_FILE}" | jq -r '.name')
+  echo "Getting ${TEAM_NAME} team data..."
+  github_api_call "${API_ENDPOINT}/${TEAM_NAME}" > "${CMD_DIR}/${TEAM_NAME}.json"
+done
+
+merge_all_files_into_one "${CMD_DIR}" "${OUTPUT_FILE}" "."
