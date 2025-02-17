@@ -1,0 +1,11 @@
+#!/bin/bash
+
+handle_failure() {
+  echo "❌ Error: $1 failed!"
+  exit 1
+}
+
+echo "🔍 Running lint checks..."
+make lint || handle_failure "lint"
+
+echo "✅ All checks passed successfully!"
