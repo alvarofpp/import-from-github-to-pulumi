@@ -11,6 +11,7 @@
 #   - jq
 # ============================================================================
 
+# shellcheck disable=SC1091
 source /usr/bin/helpers.sh
 
 ID=$(generate_id)

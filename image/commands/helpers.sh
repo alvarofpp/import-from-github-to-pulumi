@@ -141,7 +141,7 @@ to_pascal_case() {
   input=${input//./ }
 
   # Split into words and capitalize each
-  local words=($input)
+  local words=("${input}")
   local result=""
 
   # Process each word

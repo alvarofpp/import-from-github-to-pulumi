@@ -59,6 +59,7 @@ import-my-repos:
 	    --volume ./resources:/opt/resources \
 	    --volume ./logs:/tmp/logs \
 	    --env GITHUB_ACCESS_TOKEN="${GITHUB_ACCESS_TOKEN}" \
+	    --env GITHUB_USER="${GITHUB_USER}" \
 	    ${DOCKER_IMAGE} import-repositories-to-pulumi
 
 .PHONY: import-org
@@ -68,5 +69,5 @@ import-org:
 	    --volume ./resources:/opt/resources \
 	    --volume ./logs:/tmp/logs \
 	    --env GITHUB_ACCESS_TOKEN="${GITHUB_ACCESS_TOKEN}" \
-	    --env ORG="${ORG}" \
+	    --env GITHUB_ORG="${GITHUB_ORG}" \
 	    ${DOCKER_IMAGE} import-org-to-pulumi

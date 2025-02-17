@@ -16,6 +16,7 @@ RUN apk --no-cache add findutils  \
     jq \
     envsubst \
     github-cli
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl -fsSL https://get.pulumi.com | sh
 
 # Directory to save resources files
