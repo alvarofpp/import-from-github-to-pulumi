@@ -141,7 +141,8 @@ to_pascal_case() {
   input=${input//./ }
 
   # Split into words and capitalize each
-  local words=("${input}")
+  # shellcheck disable=SC2206
+  local words=($input)
   local result=""
 
   # Process each word
