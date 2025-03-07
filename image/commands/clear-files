@@ -3,6 +3,6 @@ if [[ "${DEBUG}" == "true" ]]; then
   set -x
 fi
 
-rm /opt/resources/*/*.ts
-rm /opt/resources/*.txt
-rm -rf /tmp/logs/*
+rm /opt/resources/*/*.ts 2> /dev/null
+rm /opt/resources/*.txt 2> /dev/null
+rm -rf /tmp/logs/* 2> /dev/null
