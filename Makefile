@@ -71,3 +71,11 @@ import-org:
 	    --env GITHUB_ACCESS_TOKEN="${GITHUB_ACCESS_TOKEN}" \
 	    --env GITHUB_ORG="${GITHUB_ORG}" \
 	    ${DOCKER_IMAGE} import-org-to-pulumi
+
+.PHONY: clear
+clear:
+	@docker run --rm \
+	    --user ${UID}:${GID} \
+	    --volume ./resources:/opt/resources \
+	    --volume ./logs:/tmp/logs \
+	    ${DOCKER_IMAGE} clear-files
