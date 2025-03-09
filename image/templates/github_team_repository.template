@@ -1,6 +1,9 @@
 
-        const ${TEAM_NAME_LOWER_CASE} = new github.TeamRepository("${PULUMI_RESOURCE_NAME}${REPOSITORY_NAME}TeamRepository", {
+        const ${REPOSITORY_VAR} = new github.TeamRepository("${PULUMI_RESOURCE_NAME}TeamRepository", {
             teamId: team.id,
             repository: "${REPOSITORY_NAME}",
             permission: "${REPOSITORY_PERMISSION}",
+        }, {
+            import: "${TEAM_ID}:${REPOSITORY_NAME}",
+            protect: true,
         });

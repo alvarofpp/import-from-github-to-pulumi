@@ -170,3 +170,50 @@ to_pascal_case() {
 to_lower_case() {
   echo "${1}" | tr '[:upper:]' '[:lower:]' | sed 's/[-\.]/_/g'
 }
+
+#######################################
+# Convert string value to camelCase.
+#
+# ARGUMENTS:
+#   $1: String value.
+#
+# RETURN:
+#   $1 but in camelCase.
+#   Example: If $1 is `validate-docbr`, the return will be `validateDocbr`.
+#######################################
+to_camel_case() {
+  local input="${1:-$(cat)}"
+
+  # Handle empty input
+  if [ -z "${input// /}" ]; then
+    echo ""
+    return
+  fi
+
+  # Replace separators with spaces
+  input=${input//_/ }
+  input=${input//-/ }
+  input=${input//./ }
+
+  # Split into words and capitalize each
+  # shellcheck disable=SC2206
+  local words=($input)
+  local result=""
+  local firstWord=true
+
+  # Process each word
+  for word in "${words[@]}"; do
+    # Skip empty words
+    if [ -n "$word" ]; then
+      # Capitalize first letter, lowercase rest
+      if [ "${firstWord}" = "true" ]; then
+        result+=${word,,}
+        firstWord=false
+      else
+        result+=${word^}
+      fi
+    fi
+  done
+
+  echo "${result}"
+}

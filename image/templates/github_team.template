@@ -5,10 +5,10 @@ export class ${PULUMI_RESOURCE_NAME}Team {
         const team = new github.Team(`${PULUMI_RESOURCE_NAME}Team`, {
             description: ${TEAM_DESCRIPTION},
             name: "${TEAM_NAME}",
-            parentTeamId: ${TEAM_PAREND_TEAM_ID},
+            parentTeamId: "${TEAM_PAREND_TEAM_ID}",
             privacy: "${TEAM_PRIVACY}",
         }, {
-            import: "${TEAM_NAME}",
+            import: "${TEAM_ID}",
             protect: true,
         });
 
@@ -18,7 +18,7 @@ export class ${PULUMI_RESOURCE_NAME}Team {
 ${TEAM_MEMBERS}
             ],
         }, {
-            import: "devops",
+            import: "${TEAM_ID}",
             protect: true,
         });
 

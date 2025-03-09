@@ -30,8 +30,9 @@ printf "\n[%s] Starting to get teams...\n" "${ID}"
 LIST_FILE="${ID_DIR}/list-teams.json"
 jq -c '.[]' "${LIST_FILE}" | while read -r TEAM_DATA_FROM_FILE; do
   TEAM_NAME=$(echo "${TEAM_DATA_FROM_FILE}" | jq -r '.name')
+  TEAM_SLUG=$(echo "${TEAM_DATA_FROM_FILE}" | jq -r '.slug')
   echo "Getting ${TEAM_NAME} team data..."
-  github_api_call "${API_ENDPOINT}/${TEAM_NAME}" > "${CMD_DIR}/${TEAM_NAME}.json"
+  github_api_call "${API_ENDPOINT}/${TEAM_SLUG}" > "${CMD_DIR}/${TEAM_SLUG}.json"
 done
 
 merge_all_files_into_one "${CMD_DIR}" "${OUTPUT_FILE}" "."

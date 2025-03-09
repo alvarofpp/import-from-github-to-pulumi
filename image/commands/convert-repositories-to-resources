@@ -169,10 +169,10 @@ jq -c '.[]' "${REPOSITORIES_FILE}" | while read -r REPOSITORY_DATA; do
   REPOSITORY_DELETE_BRANCH_ON_MERGE=$(echo "${REPOSITORY_DATA}" | jq -r '.delete_branch_on_merge // false') \
   REPOSITORY_DESCRIPTION=$(echo "${REPOSITORY_DATA}" | jq '.description // ""') \
   REPOSITORY_HAS_DISCUSSIONS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_discussions // false') \
-  REPOSITORY_HAS_DOWNLOADS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_downloads // true') \
+  REPOSITORY_HAS_DOWNLOADS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_downloads // false') \
   REPOSITORY_HAS_ISSUES=$(echo "${REPOSITORY_DATA}" | jq -r '.has_issues // true') \
-  REPOSITORY_HAS_PROJECTS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_projects // true') \
-  REPOSITORY_HAS_WIKI=$(echo "${REPOSITORY_DATA}" | jq -r '.has_wiki // true') \
+  REPOSITORY_HAS_PROJECTS=$(echo "${REPOSITORY_DATA}" | jq -r '.has_projects // false') \
+  REPOSITORY_HAS_WIKI=$(echo "${REPOSITORY_DATA}" | jq -r '.has_wiki // false') \
   REPOSITORY_HOMEPAGE_URL=$(echo "${REPOSITORY_DATA}" | jq -r '.homepage // empty') \
   REPOSITORY_IS_TEMPLATE=$(echo "${REPOSITORY_DATA}" | jq -r '.is_template // false') \
   REPOSITORY_MERGE_COMMIT_MESSAGE=$(echo "${REPOSITORY_DATA}" | jq -r '.merge_commit_message // "PR_BODY"') \
